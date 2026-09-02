@@ -16,7 +16,8 @@ import 'screens/patient/book_appointment_screen.dart';
 import 'screens/patient/booking_confirmation_screen.dart';
 import 'screens/patient/live_queue_screen.dart';
 import 'screens/patient/appointment_history_screen.dart';
-import 'screens/patient/notifications_screen.dart';
+import 'screens/patient/notifications_screen.dart'
+    as patient_notifications;
 import 'screens/patient/patient_profile_screen.dart';
 
 // Assistant screens
@@ -38,7 +39,9 @@ import 'screens/admin/platform_settings_screen.dart';
 import 'theme/app_theme.dart';
 
 class DorakkApp extends StatelessWidget {
-  const DorakkApp({super.key});
+  const DorakkApp({
+    super.key,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -50,12 +53,13 @@ class DorakkApp extends StatelessWidget {
       initialRoute: AppRoutes.splash,
 
       routes: {
-        // ---------------- SHARED / AUTH ----------------
+        // =====================================================
+        // SHARED / AUTH
+        // =====================================================
 
-        AppRoutes.splash: (_) => splash.SplashScreen(),
+        AppRoutes.splash: (_) =>
+            splash.SplashScreen(),
 
-        // Keeping this route registered for now,
-        // but Splash should NOT navigate to it anymore.
         AppRoutes.roleSelect: (_) =>
             const role_select.RoleSelectScreen(),
 
@@ -65,7 +69,9 @@ class DorakkApp extends StatelessWidget {
         AppRoutes.signup: (_) =>
             const signup.SignupScreen(),
 
-        // ---------------- PATIENT ----------------
+        // =====================================================
+        // PATIENT
+        // =====================================================
 
         AppRoutes.patientHome: (_) =>
             const PatientHomeScreen(),
@@ -89,12 +95,15 @@ class DorakkApp extends StatelessWidget {
             const AppointmentHistoryScreen(),
 
         AppRoutes.patientNotifications: (_) =>
-            const NotificationsScreen(),
+            const patient_notifications
+                .NotificationsScreen(),
 
         AppRoutes.patientProfile: (_) =>
             const PatientProfileScreen(),
 
-        // ---------------- ASSISTANT ----------------
+        // =====================================================
+        // ASSISTANT
+        // =====================================================
 
         AppRoutes.assistantDashboard: (_) =>
             const AssistantDashboardScreen(),
@@ -111,7 +120,9 @@ class DorakkApp extends StatelessWidget {
         AppRoutes.manageDoctors: (_) =>
             const ManageDoctorsServicesScreen(),
 
-        // ---------------- ADMIN ----------------
+        // =====================================================
+        // ADMIN
+        // =====================================================
 
         AppRoutes.adminDashboard: (_) =>
             const AdminDashboardScreen(),
