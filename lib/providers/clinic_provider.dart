@@ -1,5 +1,6 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/foundation.dart';
+import 'package:geolocator/geolocator.dart';
 
 import '../models/clinic_model.dart';
 import '../models/doctor_model.dart';
@@ -17,31 +18,41 @@ class ClinicProvider extends ChangeNotifier {
   DoctorModel? _selectedDoctor;
   DoctorSlotModel? _selectedSlot;
 
+  Position? _currentPosition;
+
   bool _isLoading = false;
   bool _isLoadingDoctors = false;
   bool _isLoadingSlots = false;
+  bool _isLocating = false;
 
   String? _errorMessage;
   String? _doctorErrorMessage;
   String? _slotErrorMessage;
+  String? _locationMessage;
 
-  // Compatibility with older booking code
+  // Compatibility with older booking code.
   String? selectedDoctorName;
   String? selectedDoctorSpecialty;
   String? selectedDoctorNextAvailable;
 
-  // =========================================================
+  // ===========================================================
   // GETTERS
-  // =========================================================
+  // ===========================================================
 
   List<ClinicModel> get clinics =>
-      List.unmodifiable(_clinics);
+      List.unmodifiable(
+        _clinics,
+      );
 
   List<DoctorModel> get doctors =>
-      List.unmodifiable(_doctors);
+      List.unmodifiable(
+        _doctors,
+      );
 
   List<DoctorSlotModel> get slots =>
-      List.unmodifiable(_slots);
+      List.unmodifiable(
+        _slots,
+      );
 
   ClinicModel? get selectedClinic =>
       _selectedClinic;
@@ -52,13 +63,23 @@ class ClinicProvider extends ChangeNotifier {
   DoctorSlotModel? get selectedSlot =>
       _selectedSlot;
 
-  bool get isLoading => _isLoading;
+  Position? get currentPosition =>
+      _currentPosition;
+
+  bool get hasCurrentLocation =>
+      _currentPosition != null;
+
+  bool get isLoading =>
+      _isLoading;
 
   bool get isLoadingDoctors =>
       _isLoadingDoctors;
 
   bool get isLoadingSlots =>
       _isLoadingSlots;
+
+  bool get isLocating =>
+      _isLocating;
 
   String? get errorMessage =>
       _errorMessage;
@@ -69,43 +90,60 @@ class ClinicProvider extends ChangeNotifier {
   String? get slotErrorMessage =>
       _slotErrorMessage;
 
-  // =========================================================
+  String? get locationMessage =>
+      _locationMessage;
+
+  // ===========================================================
   // FETCH CLINICS
-  // =========================================================
+  // ===========================================================
 
   Future<void> fetchClinics() async {
     _isLoading = true;
+    _isLocating = true;
+
     _errorMessage = null;
+    _locationMessage = null;
 
     notifyListeners();
 
     try {
-      final snapshot = await _firestore
-          .collection('clinics')
-          .where(
-            'active',
-            isEqualTo: true,
-          )
-          .where(
-            'approvalStatus',
-            isEqualTo: 'approved',
-          )
-          .get();
+      final snapshot =
+          await _firestore
+              .collection('clinics')
+              .where(
+                'active',
+                isEqualTo: true,
+              )
+              .where(
+                'approvalStatus',
+                isEqualTo: 'approved',
+              )
+              .get();
 
-      final loadedClinics = snapshot.docs
-          .map(
-            (document) =>
-                ClinicModel.fromFirestore(document),
-          )
-          .toList();
+      final loadedClinics =
+          snapshot.docs
+              .map(
+                (document) =>
+                    ClinicModel
+                        .fromFirestore(
+                  document,
+                ),
+              )
+              .toList();
 
       _clinics
         ..clear()
-        ..addAll(loadedClinics);
+        ..addAll(
+          loadedClinics,
+        );
 
       debugPrint(
         'Loaded ${_clinics.length} approved clinics.',
       );
+
+      // Try to get the patient's location.
+      // If denied, clinics still remain usable.
+      await _loadCurrentLocation();
     } on FirebaseException catch (e) {
       debugPrint(
         'Clinic Firestore error: '
@@ -123,18 +161,254 @@ class ClinicProvider extends ChangeNotifier {
           'Could not load clinics. Please try again.';
     } finally {
       _isLoading = false;
+      _isLocating = false;
+
       notifyListeners();
     }
   }
 
-  // =========================================================
-  // SELECT CLINIC
-  // =========================================================
+  // ===========================================================
+  // PUBLIC LOCATION REFRESH
+  // ===========================================================
 
-  void selectClinic(String clinicId) {
+  Future<void> refreshLocation() async {
+    if (_isLocating) {
+      return;
+    }
+
+    _isLocating = true;
+    _locationMessage = null;
+
+    notifyListeners();
+
     try {
-      _selectedClinic = _clinics.firstWhere(
-        (clinic) => clinic.id == clinicId,
+      await _loadCurrentLocation();
+    } finally {
+      _isLocating = false;
+
+      notifyListeners();
+    }
+  }
+
+  // ===========================================================
+  // GET PATIENT LOCATION
+  // ===========================================================
+
+  Future<void> _loadCurrentLocation() async {
+    try {
+      final serviceEnabled =
+          await Geolocator
+              .isLocationServiceEnabled();
+
+      if (!serviceEnabled) {
+        _currentPosition = null;
+
+        _locationMessage =
+            'Location services are turned off. '
+            'Turn them on to see nearby clinics.';
+
+        _clearClinicDistances();
+
+        return;
+      }
+
+      var permission =
+          await Geolocator
+              .checkPermission();
+
+      if (permission ==
+          LocationPermission.denied) {
+        permission =
+            await Geolocator
+                .requestPermission();
+      }
+
+      if (permission ==
+          LocationPermission.denied) {
+        _currentPosition = null;
+
+        _locationMessage =
+            'Location permission was denied. '
+            'You can still browse all clinics.';
+
+        _clearClinicDistances();
+
+        return;
+      }
+
+      if (permission ==
+          LocationPermission.deniedForever) {
+        _currentPosition = null;
+
+        _locationMessage =
+            'Location permission is permanently denied. '
+            'Enable it in your device settings to see nearby clinics.';
+
+        _clearClinicDistances();
+
+        return;
+      }
+
+      final position =
+          await Geolocator
+              .getCurrentPosition(
+        locationSettings:
+            const LocationSettings(
+          accuracy:
+              LocationAccuracy.high,
+        ),
+      );
+
+      _currentPosition =
+          position;
+
+      _locationMessage =
+          null;
+
+      _calculateClinicDistances();
+
+      debugPrint(
+        'Patient location: '
+        '${position.latitude}, '
+        '${position.longitude}',
+      );
+    } catch (e) {
+      debugPrint(
+        'Location error: $e',
+      );
+
+      _currentPosition = null;
+
+      _locationMessage =
+          'Could not get your location. '
+          'You can still browse all clinics.';
+
+      _clearClinicDistances();
+    }
+  }
+
+  // ===========================================================
+  // CALCULATE DISTANCES
+  // ===========================================================
+
+  void _calculateClinicDistances() {
+    final position =
+        _currentPosition;
+
+    if (position == null) {
+      return;
+    }
+
+    final updatedClinics =
+        _clinics.map(
+      (clinic) {
+        if (!clinic.hasLocation) {
+          return clinic.copyWithDistance(
+            null,
+          );
+        }
+
+        final distanceMeters =
+            Geolocator.distanceBetween(
+          position.latitude,
+          position.longitude,
+          clinic.latitude,
+          clinic.longitude,
+        );
+
+        final distanceKm =
+            distanceMeters / 1000;
+
+        return clinic.copyWithDistance(
+          distanceKm,
+        );
+      },
+    ).toList();
+
+    // Nearest clinic first.
+    updatedClinics.sort(
+      (a, b) {
+        final aDistance =
+            a.distanceKm;
+
+        final bDistance =
+            b.distanceKm;
+
+        if (aDistance == null &&
+            bDistance == null) {
+          return 0;
+        }
+
+        if (aDistance == null) {
+          return 1;
+        }
+
+        if (bDistance == null) {
+          return -1;
+        }
+
+        return aDistance.compareTo(
+          bDistance,
+        );
+      },
+    );
+
+    _clinics
+      ..clear()
+      ..addAll(
+        updatedClinics,
+      );
+
+    // Keep selected clinic pointing to the
+    // freshly calculated model.
+    if (_selectedClinic != null) {
+      final selectedId =
+          _selectedClinic!.id;
+
+      for (final clinic
+          in _clinics) {
+        if (clinic.id ==
+            selectedId) {
+          _selectedClinic =
+              clinic;
+
+          break;
+        }
+      }
+    }
+  }
+
+  void _clearClinicDistances() {
+    final updatedClinics =
+        _clinics
+            .map(
+              (clinic) =>
+                  clinic.copyWithDistance(
+                null,
+              ),
+            )
+            .toList();
+
+    _clinics
+      ..clear()
+      ..addAll(
+        updatedClinics,
+      );
+  }
+
+  // ===========================================================
+  // SELECT CLINIC
+  // ===========================================================
+
+  void selectClinic(
+    String clinicId,
+  ) {
+    try {
+      _selectedClinic =
+          _clinics.firstWhere(
+        (clinic) =>
+            clinic.id ==
+            clinicId,
       );
 
       _doctors.clear();
@@ -158,12 +432,13 @@ class ClinicProvider extends ChangeNotifier {
     }
   }
 
-  // =========================================================
+  // ===========================================================
   // FETCH DOCTORS
-  // =========================================================
+  // ===========================================================
 
   Future<void> fetchDoctors() async {
-    final clinic = _selectedClinic;
+    final clinic =
+        _selectedClinic;
 
     if (clinic == null) {
       _doctorErrorMessage =
@@ -173,32 +448,42 @@ class ClinicProvider extends ChangeNotifier {
       return;
     }
 
-    _isLoadingDoctors = true;
-    _doctorErrorMessage = null;
+    _isLoadingDoctors =
+        true;
+
+    _doctorErrorMessage =
+        null;
 
     notifyListeners();
 
     try {
-      final snapshot = await _firestore
-          .collection('clinics')
-          .doc(clinic.id)
-          .collection('doctors')
-          .where(
-            'active',
-            isEqualTo: true,
-          )
-          .get();
+      final snapshot =
+          await _firestore
+              .collection('clinics')
+              .doc(clinic.id)
+              .collection('doctors')
+              .where(
+                'active',
+                isEqualTo: true,
+              )
+              .get();
 
-      final loadedDoctors = snapshot.docs
-          .map(
-            (document) =>
-                DoctorModel.fromFirestore(document),
-          )
-          .toList();
+      final loadedDoctors =
+          snapshot.docs
+              .map(
+                (document) =>
+                    DoctorModel
+                        .fromFirestore(
+                  document,
+                ),
+              )
+              .toList();
 
       _doctors
         ..clear()
-        ..addAll(loadedDoctors);
+        ..addAll(
+          loadedDoctors,
+        );
 
       debugPrint(
         'Loaded ${_doctors.length} doctors '
@@ -220,21 +505,26 @@ class ClinicProvider extends ChangeNotifier {
       _doctorErrorMessage =
           'Could not load doctors. Please try again.';
     } finally {
-      _isLoadingDoctors = false;
+      _isLoadingDoctors =
+          false;
+
       notifyListeners();
     }
   }
 
-  // =========================================================
+  // ===========================================================
   // SELECT DOCTOR
-  // =========================================================
+  // ===========================================================
 
   void selectDoctorModel(
     DoctorModel doctor,
   ) {
-    _selectedDoctor = doctor;
+    _selectedDoctor =
+        doctor;
 
-    selectedDoctorName = doctor.name;
+    selectedDoctorName =
+        doctor.name;
+
     selectedDoctorSpecialty =
         doctor.specialty;
 
@@ -244,7 +534,6 @@ class ClinicProvider extends ChangeNotifier {
             ? doctor.availability
             : null);
 
-    // Doctor changed → clear old slots.
     _slots.clear();
     _selectedSlot = null;
     _slotErrorMessage = null;
@@ -252,7 +541,7 @@ class ClinicProvider extends ChangeNotifier {
     notifyListeners();
   }
 
-  // Keep temporarily for older screens.
+  // Compatibility with older screens.
   void selectDoctor({
     required String doctorName,
     required String specialty,
@@ -268,12 +557,15 @@ class ClinicProvider extends ChangeNotifier {
         nextAvailable;
 
     try {
-      _selectedDoctor = _doctors.firstWhere(
+      _selectedDoctor =
+          _doctors.firstWhere(
         (doctor) =>
-            doctor.name == doctorName,
+            doctor.name ==
+            doctorName,
       );
     } catch (_) {
-      _selectedDoctor = null;
+      _selectedDoctor =
+          null;
     }
 
     _slots.clear();
@@ -282,15 +574,19 @@ class ClinicProvider extends ChangeNotifier {
     notifyListeners();
   }
 
-  // =========================================================
+  // ===========================================================
   // FETCH AVAILABLE SLOTS
-  // =========================================================
+  // ===========================================================
 
   Future<void> fetchSlots() async {
-    final clinic = _selectedClinic;
-    final doctor = _selectedDoctor;
+    final clinic =
+        _selectedClinic;
 
-    if (clinic == null || doctor == null) {
+    final doctor =
+        _selectedDoctor;
+
+    if (clinic == null ||
+        doctor == null) {
       _slotErrorMessage =
           'Please select a doctor first.';
 
@@ -298,48 +594,61 @@ class ClinicProvider extends ChangeNotifier {
       return;
     }
 
-    _isLoadingSlots = true;
-    _slotErrorMessage = null;
+    _isLoadingSlots =
+        true;
+
+    _slotErrorMessage =
+        null;
 
     notifyListeners();
 
     try {
-      final snapshot = await _firestore
-          .collection('clinics')
-          .doc(clinic.id)
-          .collection('doctors')
-          .doc(doctor.id)
-          .collection('slots')
-          .where(
-            'active',
-            isEqualTo: true,
-          )
-          .get();
+      final snapshot =
+          await _firestore
+              .collection('clinics')
+              .doc(clinic.id)
+              .collection('doctors')
+              .doc(doctor.id)
+              .collection('slots')
+              .where(
+                'active',
+                isEqualTo: true,
+              )
+              .get();
 
-      final now = DateTime.now();
+      final now =
+          DateTime.now();
 
-      final loadedSlots = snapshot.docs
-          .map(
-            (document) =>
-                DoctorSlotModel.fromFirestore(
-              document,
-            ),
-          )
-          .where(
-            (slot) =>
-                slot.status == 'available' &&
-                slot.startAt.isAfter(now),
-          )
-          .toList();
+      final loadedSlots =
+          snapshot.docs
+              .map(
+                (document) =>
+                    DoctorSlotModel
+                        .fromFirestore(
+                  document,
+                ),
+              )
+              .where(
+                (slot) =>
+                    slot.status ==
+                        'available' &&
+                    slot.startAt
+                        .isAfter(now),
+              )
+              .toList();
 
       loadedSlots.sort(
         (a, b) =>
-            a.startAt.compareTo(b.startAt),
+            a.startAt.compareTo(
+          b.startAt,
+        ),
       );
 
       _slots
         ..clear()
-        ..addAll(loadedSlots);
+        ..addAll(
+          loadedSlots,
+        );
 
       _selectedSlot = null;
 
@@ -363,26 +672,29 @@ class ClinicProvider extends ChangeNotifier {
       _slotErrorMessage =
           'Could not load appointment slots.';
     } finally {
-      _isLoadingSlots = false;
+      _isLoadingSlots =
+          false;
+
       notifyListeners();
     }
   }
 
-  // =========================================================
+  // ===========================================================
   // SELECT SLOT
-  // =========================================================
+  // ===========================================================
 
   void selectSlot(
     DoctorSlotModel slot,
   ) {
-    _selectedSlot = slot;
+    _selectedSlot =
+        slot;
 
     notifyListeners();
   }
 
-  // =========================================================
+  // ===========================================================
   // CLEAR
-  // =========================================================
+  // ===========================================================
 
   void clearSelection() {
     _selectedClinic = null;

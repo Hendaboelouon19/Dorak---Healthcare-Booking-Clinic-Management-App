@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/foundation.dart';
@@ -23,12 +25,21 @@ class AppointmentProvider extends ChangeNotifier {
   String? _errorMessage;
   String? _appointmentsErrorMessage;
 
-  // =========================================================
-  // GETTERS
-  // =========================================================
+  // ===========================================================
+  // REALTIME LISTENER
+  // ===========================================================
 
-  bool get isBooking =>
-      _isBooking;
+  StreamSubscription<
+      QuerySnapshot<Map<String, dynamic>>>?
+      _appointmentsSubscription;
+
+  String? _listeningUserId;
+
+  // ===========================================================
+  // GETTERS
+  // ===========================================================
+
+  bool get isBooking => _isBooking;
 
   bool get isLoadingAppointments =>
       _isLoadingAppointments;
@@ -44,19 +55,153 @@ class AppointmentProvider extends ChangeNotifier {
         _realAppointments,
       );
 
-  // TEMPORARY compatibility with PatientHomeScreen.
-  //
-  // We'll remove MockData from here when we migrate
-  // Patient Home in the next phase.
+  // Kept temporarily because some old screens may still use it.
   List<AppointmentModel> get appointments =>
       List.unmodifiable([
         ..._realAppointments,
         ...MockData.appointments,
       ]);
 
-  // =========================================================
-  // FETCH PATIENT APPOINTMENTS
-  // =========================================================
+  // ===========================================================
+  // START REALTIME LISTENER
+  // ===========================================================
+
+  Future<void> startAppointmentsListener() async {
+    final firebaseUser =
+        _auth.currentUser;
+
+    if (firebaseUser == null) {
+      await stopAppointmentsListener();
+
+      _realAppointments.clear();
+      selectedAppointment = null;
+
+      notifyListeners();
+      return;
+    }
+
+    // Already listening for this patient.
+    if (_appointmentsSubscription != null &&
+        _listeningUserId == firebaseUser.uid) {
+      return;
+    }
+
+    // Stop an old user's listener first.
+    await stopAppointmentsListener();
+
+    _listeningUserId =
+        firebaseUser.uid;
+
+    _isLoadingAppointments =
+        true;
+
+    _appointmentsErrorMessage =
+        null;
+
+    notifyListeners();
+
+    _appointmentsSubscription =
+        _firestore
+            .collection('appointments')
+            .where(
+              'patientId',
+              isEqualTo:
+                  firebaseUser.uid,
+            )
+            .snapshots()
+            .listen(
+      (snapshot) {
+        final loaded =
+            snapshot.docs
+                .map(
+                  (document) =>
+                      AppointmentModel
+                          .fromFirestore(
+                    document,
+                  ),
+                )
+                .toList();
+
+        loaded.sort(
+          (a, b) =>
+              b.date.compareTo(a.date),
+        );
+
+        _realAppointments
+          ..clear()
+          ..addAll(loaded);
+
+        // Keep selected appointment synced too.
+        if (selectedAppointment != null) {
+          final selectedId =
+              selectedAppointment!.id;
+
+          AppointmentModel? updatedAppointment;
+
+          for (final appointment
+              in _realAppointments) {
+            if (appointment.id ==
+                selectedId) {
+              updatedAppointment =
+                  appointment;
+
+              break;
+            }
+          }
+
+          if (updatedAppointment != null) {
+            selectedAppointment =
+                updatedAppointment;
+          }
+        }
+
+        _isLoadingAppointments =
+            false;
+
+        _appointmentsErrorMessage =
+            null;
+
+        debugPrint(
+          'Realtime appointments updated: '
+          '${_realAppointments.length}',
+        );
+
+        notifyListeners();
+      },
+      onError: (Object error) {
+        debugPrint(
+          'Realtime appointment error: $error',
+        );
+
+        _isLoadingAppointments =
+            false;
+
+        _appointmentsErrorMessage =
+            'Could not sync appointments.';
+
+        notifyListeners();
+      },
+    );
+  }
+
+  // ===========================================================
+  // STOP REALTIME LISTENER
+  // ===========================================================
+
+  Future<void> stopAppointmentsListener() async {
+    await _appointmentsSubscription
+        ?.cancel();
+
+    _appointmentsSubscription =
+        null;
+
+    _listeningUserId =
+        null;
+  }
+
+  // ===========================================================
+  // NORMAL FETCH
+  // ===========================================================
 
   Future<void> fetchAppointments() async {
     final firebaseUser =
@@ -72,30 +217,36 @@ class AppointmentProvider extends ChangeNotifier {
       return;
     }
 
-    _isLoadingAppointments = true;
-    _appointmentsErrorMessage = null;
+    _isLoadingAppointments =
+        true;
+
+    _appointmentsErrorMessage =
+        null;
 
     notifyListeners();
 
     try {
-      final snapshot = await _firestore
-          .collection('appointments')
-          .where(
-            'patientId',
-            isEqualTo: firebaseUser.uid,
-          )
-          .get();
+      final snapshot =
+          await _firestore
+              .collection('appointments')
+              .where(
+                'patientId',
+                isEqualTo:
+                    firebaseUser.uid,
+              )
+              .get();
 
-      final loaded = snapshot.docs
-          .map(
-            (document) =>
-                AppointmentModel.fromFirestore(
-              document,
-            ),
-          )
-          .toList();
+      final loaded =
+          snapshot.docs
+              .map(
+                (document) =>
+                    AppointmentModel
+                        .fromFirestore(
+                  document,
+                ),
+              )
+              .toList();
 
-      // Newest appointment first.
       loaded.sort(
         (a, b) =>
             b.date.compareTo(a.date),
@@ -105,32 +256,24 @@ class AppointmentProvider extends ChangeNotifier {
         ..clear()
         ..addAll(loaded);
 
-      // Refresh selected appointment with the
-      // latest Firestore version if it exists.
       if (selectedAppointment != null) {
         final selectedId =
             selectedAppointment!.id;
-
-        AppointmentModel? refreshed;
 
         for (final appointment
             in _realAppointments) {
           if (appointment.id ==
               selectedId) {
-            refreshed = appointment;
+            selectedAppointment =
+                appointment;
+
             break;
           }
-        }
-
-        if (refreshed != null) {
-          selectedAppointment =
-              refreshed;
         }
       }
 
       debugPrint(
-        'Loaded ${_realAppointments.length} '
-        'appointments for patient.',
+        'Loaded ${_realAppointments.length} appointments.',
       );
     } on FirebaseException catch (e) {
       debugPrint(
@@ -155,9 +298,9 @@ class AppointmentProvider extends ChangeNotifier {
     }
   }
 
-  // =========================================================
+  // ===========================================================
   // SELECT APPOINTMENT
-  // =========================================================
+  // ===========================================================
 
   void selectAppointment(
     AppointmentModel appointment,
@@ -168,9 +311,9 @@ class AppointmentProvider extends ChangeNotifier {
     notifyListeners();
   }
 
-  // =========================================================
+  // ===========================================================
   // BOOK APPOINTMENT
-  // =========================================================
+  // ===========================================================
 
   Future<bool> bookAppointment({
     required String clinicId,
@@ -193,23 +336,29 @@ class AppointmentProvider extends ChangeNotifier {
           'You must be logged in to book an appointment.';
 
       notifyListeners();
+
       return false;
     }
 
-    _isBooking = true;
-    _errorMessage = null;
+    _isBooking =
+        true;
+
+    _errorMessage =
+        null;
 
     notifyListeners();
 
     try {
-      // -------------------------------------------------------
+      // =======================================================
       // PATIENT
-      // -------------------------------------------------------
+      // =======================================================
 
       final userSnapshot =
           await _firestore
               .collection('users')
-              .doc(firebaseUser.uid)
+              .doc(
+                firebaseUser.uid,
+              )
               .get();
 
       final patientName =
@@ -219,9 +368,9 @@ class AppointmentProvider extends ChangeNotifier {
               firebaseUser.email ??
               'Patient';
 
-      // -------------------------------------------------------
+      // =======================================================
       // REFERENCES
-      // -------------------------------------------------------
+      // =======================================================
 
       final slotReference =
           _firestore
@@ -234,15 +383,17 @@ class AppointmentProvider extends ChangeNotifier {
 
       final appointmentReference =
           _firestore
-              .collection('appointments')
+              .collection(
+                'appointments',
+              )
               .doc();
 
       DateTime? confirmedStartAt;
       DateTime? confirmedEndAt;
 
-      // -------------------------------------------------------
-      // ATOMIC BOOKING
-      // -------------------------------------------------------
+      // =======================================================
+      // TRANSACTION
+      // =======================================================
 
       await _firestore.runTransaction(
         (transaction) async {
@@ -267,7 +418,8 @@ class AppointmentProvider extends ChangeNotifier {
           }
 
           final active =
-              slotData['active'] == true;
+              slotData['active'] ==
+                  true;
 
           final status =
               slotData['status']
@@ -303,7 +455,9 @@ class AppointmentProvider extends ChangeNotifier {
               endTimestamp.toDate();
 
           if (!confirmedStartAt!
-              .isAfter(DateTime.now())) {
+              .isAfter(
+            DateTime.now(),
+          )) {
             throw const _SlotUnavailableException(
               'This appointment slot has already passed.',
             );
@@ -314,9 +468,9 @@ class AppointmentProvider extends ChangeNotifier {
               ' - '
               '${DateFormat('h:mm a').format(confirmedEndAt!)}';
 
-          // ---------------------------------------------
+          // ===================================================
           // CREATE APPOINTMENT
-          // ---------------------------------------------
+          // ===================================================
 
           transaction.set(
             appointmentReference,
@@ -360,21 +514,24 @@ class AppointmentProvider extends ChangeNotifier {
               'status':
                   'booked',
 
-              // Patient has NOT entered queue yet.
+              // Patient does not enter queue
+              // until Assistant approves arrival.
               'queueNumber':
                   0,
 
               'createdAt':
-                  FieldValue.serverTimestamp(),
+                  FieldValue
+                      .serverTimestamp(),
 
               'updatedAt':
-                  FieldValue.serverTimestamp(),
+                  FieldValue
+                      .serverTimestamp(),
             },
           );
 
-          // ---------------------------------------------
+          // ===================================================
           // RESERVE SLOT
-          // ---------------------------------------------
+          // ===================================================
 
           transaction.update(
             slotReference,
@@ -389,7 +546,8 @@ class AppointmentProvider extends ChangeNotifier {
                   appointmentReference.id,
 
               'bookedAt':
-                  FieldValue.serverTimestamp(),
+                  FieldValue
+                      .serverTimestamp(),
             },
           );
         },
@@ -461,6 +619,7 @@ class AppointmentProvider extends ChangeNotifier {
       selectedAppointment =
           appointment;
 
+      // This makes confirmation screen work instantly.
       _realAppointments.insert(
         0,
         appointment,
@@ -503,10 +662,23 @@ class AppointmentProvider extends ChangeNotifier {
 
       return false;
     } finally {
-      _isBooking = false;
+      _isBooking =
+          false;
 
       notifyListeners();
     }
+  }
+
+  // ===========================================================
+  // DISPOSE
+  // ===========================================================
+
+  @override
+  void dispose() {
+    _appointmentsSubscription
+        ?.cancel();
+
+    super.dispose();
   }
 }
 

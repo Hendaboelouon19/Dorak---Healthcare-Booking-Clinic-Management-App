@@ -265,7 +265,7 @@ Future<bool> restoreSession() async {
   // ---------------- HELPERS ----------------
 
   UserRole _roleFromString(String role) {
-    switch (role.toLowerCase()) {
+    switch (role.trim().toLowerCase()) {
       case 'admin':
         return UserRole.admin;
 
