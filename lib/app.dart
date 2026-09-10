@@ -31,9 +31,12 @@ import 'screens/assistant/manage_doctors_services_screen.dart';
 import 'screens/admin/admin_dashboard_screen.dart';
 import 'screens/admin/clinics_management_screen.dart';
 import 'screens/admin/clinic_edit_screen.dart';
+import 'screens/admin/add_clinic_screen.dart';
 import 'screens/admin/assistants_management_screen.dart';
 import 'screens/admin/clinic_performance_screen.dart';
 import 'screens/admin/platform_settings_screen.dart';
+import 'screens/admin/add_assistant_screen.dart';
+import 'screens/admin/assistant_edit_screen.dart';
 
 // Theme
 import 'theme/app_theme.dart';
@@ -132,6 +135,22 @@ class DorakkApp extends StatelessWidget {
 
         AppRoutes.clinicEdit: (_) =>
             const ClinicEditScreen(),
+            
+        AppRoutes.addClinic: (_) =>
+            const AddClinicScreen(),
+
+        AppRoutes.addAssistant: (_) =>
+            const AddAssistantScreen(),
+
+        AppRoutes.assistantEdit: (context) {
+          final assistant =
+              ModalRoute.of(context)!.settings.arguments
+                  as Map<String, dynamic>;
+
+          return AssistantEditScreen(
+            assistant: assistant,
+          );
+        },
 
         AppRoutes.assistantsManagement: (_) =>
             const AssistantsManagementScreen(),

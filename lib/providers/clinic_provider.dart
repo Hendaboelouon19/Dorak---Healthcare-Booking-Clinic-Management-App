@@ -168,6 +168,63 @@ class ClinicProvider extends ChangeNotifier {
   }
 
   // ===========================================================
+  // FETCH ALL CLINICS FOR ADMIN
+  // ===========================================================
+
+  Future<void> fetchAllClinicsForAdmin() async {
+    _isLoading = true;
+    _errorMessage = null;
+
+    notifyListeners();
+
+    try {
+      final snapshot =
+          await _firestore
+              .collection('clinics')
+              .get();
+
+      final loadedClinics =
+          snapshot.docs
+              .map(
+                (document) =>
+                    ClinicModel.fromFirestore(
+                  document,
+                ),
+              )
+              .toList();
+
+      _clinics
+        ..clear()
+        ..addAll(
+          loadedClinics,
+        );
+
+      debugPrint(
+        'Admin loaded ${_clinics.length} clinics.',
+      );
+    } on FirebaseException catch (e) {
+      debugPrint(
+        'Admin Clinic Firestore error: '
+        '${e.code} - ${e.message}',
+      );
+
+      _errorMessage =
+          'Could not load clinics. Please try again.';
+    } catch (e) {
+      debugPrint(
+        'Admin Clinic loading error: $e',
+      );
+
+      _errorMessage =
+          'Could not load clinics. Please try again.';
+    } finally {
+      _isLoading = false;
+
+      notifyListeners();
+    }
+  }
+
+  // ===========================================================
   // PUBLIC LOCATION REFRESH
   // ===========================================================
 
@@ -691,7 +748,174 @@ class ClinicProvider extends ChangeNotifier {
 
     notifyListeners();
   }
+// ===========================================================
+// UPDATE CLINIC - ADMIN
+// ===========================================================
 
+Future<bool> updateClinic({
+  required String clinicId,
+  required String name,
+  required String address,
+  required String workingHours,
+  required String assistantName,
+  required bool active,
+}) async {
+  _isLoading = true;
+  _errorMessage = null;
+
+  notifyListeners();
+
+  try {
+    await _firestore
+        .collection('clinics')
+        .doc(clinicId)
+        .update({
+      'name': name.trim(),
+      'address': address.trim(),
+      'workingHours': workingHours.trim(),
+      'assistantName': assistantName.trim(),
+      'active': active,
+      'updatedAt': FieldValue.serverTimestamp(),
+    });
+
+    // Update the selected clinic locally too.
+    if (_selectedClinic != null &&
+        _selectedClinic!.id == clinicId) {
+      final oldClinic = _selectedClinic!;
+
+      _selectedClinic = ClinicModel(
+        id: oldClinic.id,
+        name: name.trim(),
+        address: address.trim(),
+        specialties: oldClinic.specialties,
+        rating: oldClinic.rating,
+        distance: oldClinic.distance,
+        imageUrl: oldClinic.imageUrl,
+        openNow: oldClinic.openNow,
+        currentQueue: oldClinic.currentQueue,
+        assistantName: assistantName.trim(),
+        workingHours: workingHours.trim(),
+        active: active,
+        latitude: oldClinic.latitude,
+        longitude: oldClinic.longitude,
+        distanceKm: oldClinic.distanceKm,
+      );
+
+      final index = _clinics.indexWhere(
+        (clinic) => clinic.id == clinicId,
+      );
+
+      if (index != -1) {
+        _clinics[index] = _selectedClinic!;
+      }
+    }
+
+    debugPrint(
+      'Clinic updated successfully: $clinicId',
+    );
+
+    return true;
+  } on FirebaseException catch (e) {
+    debugPrint(
+      'Update clinic Firebase error: '
+      '${e.code} - ${e.message}',
+    );
+
+    _errorMessage =
+        'Could not update clinic. Please try again.';
+
+    return false;
+  } catch (e) {
+    debugPrint(
+      'Update clinic error: $e',
+    );
+
+    _errorMessage =
+        'Could not update clinic. Please try again.';
+
+    return false;
+  } finally {
+    _isLoading = false;
+    notifyListeners();
+  }
+}
+
+// ===========================================================
+// ADD CLINIC - ADMIN
+// ===========================================================
+
+Future<bool> addClinic({
+  required String name,
+  required String address,
+  required List<String> specialties,
+  required String workingHours,
+  required String assistantName,
+  required bool active,
+  double? latitude,
+  double? longitude,
+}) async {
+  _isLoading = true;
+  _errorMessage = null;
+
+  notifyListeners();
+
+  try {
+    final clinicData = <String, dynamic>{
+      'name': name.trim(),
+      'address': address.trim(),
+      'specialties': specialties,
+      'rating': 0.0,
+      'imageUrl': '',
+      'isOpen': false,
+      'active': active,
+      'currentQueue': 0,
+      'assistantName': assistantName.trim(),
+      'workingHours': workingHours.trim(),
+      'approvalStatus': 'approved',
+      'createdAt': FieldValue.serverTimestamp(),
+      'updatedAt': FieldValue.serverTimestamp(),
+    };
+
+    if (latitude != null && longitude != null) {
+      clinicData['location'] = GeoPoint(
+        latitude,
+        longitude,
+      );
+    }
+
+    final documentReference = await _firestore
+        .collection('clinics')
+        .add(clinicData);
+
+    debugPrint(
+      'Clinic added successfully: ${documentReference.id}',
+    );
+
+    return true;
+  } on FirebaseException catch (e) {
+    debugPrint(
+      'Add clinic Firebase error: '
+      '${e.code} - ${e.message}',
+    );
+
+    _errorMessage =
+        'Could not add clinic. Please try again.';
+
+    return false;
+  } catch (e) {
+    debugPrint(
+      'Add clinic error: $e',
+    );
+
+    _errorMessage =
+        'Could not add clinic. Please try again.';
+
+    return false;
+  } finally {
+    _isLoading = false;
+    notifyListeners();
+  }
+}
   // ===========================================================
   // CLEAR
   // ===========================================================

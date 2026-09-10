@@ -49,8 +49,7 @@ class RoleSelectScreen extends StatelessWidget {
               subtitle: 'Monitor clinics, staff, and platform insights',
               color: AppColors.warningAmber,
               onTap: () {
-                auth.setRole(UserRole.admin);
-                Navigator.of(context).pushReplacementNamed('/admin-dashboard');
+                Navigator.of(context).pushReplacementNamed('/login');
               },
             ),
           ],

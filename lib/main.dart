@@ -8,6 +8,7 @@ import 'providers/clinic_provider.dart';
 import 'providers/notification_provider.dart';
 import 'providers/queue_provider.dart';
 import 'package:firebase_core/firebase_core.dart';
+import 'providers/admin_provider.dart';
 
 import 'firebase_options.dart';
 void main() async {
@@ -23,6 +24,7 @@ void main() async {
         ChangeNotifierProvider(create: (_) => AppointmentProvider()),
         ChangeNotifierProvider(create: (_) => QueueProvider()),
         ChangeNotifierProvider(create: (_) => NotificationProvider()),
+        ChangeNotifierProvider(create: (_) => AdminProvider()),
       ],
       child: const DorakkApp(),
     ),

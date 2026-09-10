@@ -23,7 +23,11 @@ class AppRoutes {
   static const adminDashboard = '/admin-dashboard';
   static const clinicsManagement = '/clinics-management';
   static const clinicEdit = '/clinic-edit';
+  static const addClinic = '/add-clinic';
+  static const addAssistant = '/add-assistant';
+  static const assistantEdit = '/assistant-edit';
   static const assistantsManagement = '/assistants-management';
   static const clinicPerformance = '/clinic-performance';
   static const platformSettings = '/platform-settings';
+  
 }
