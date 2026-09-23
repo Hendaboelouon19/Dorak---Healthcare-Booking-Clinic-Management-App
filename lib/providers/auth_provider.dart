@@ -14,6 +14,7 @@ class AuthProvider extends ChangeNotifier {
   UserModel? _currentUser;
 
   bool _isLoading = false;
+  bool _demoAuthenticated = false;
   String? _errorMessage;
 
   late final StreamSubscription<User?> _authSubscription;
@@ -34,12 +35,13 @@ class AuthProvider extends ChangeNotifier {
 
   String? get errorMessage => _errorMessage;
 
-  bool get isAuthenticated => _auth.currentUser != null;
+  bool get isAuthenticated => _auth.currentUser != null || _demoAuthenticated;
 
   // ---------------- AUTH STATE ----------------
 
   Future<void> _handleAuthStateChanged(User? firebaseUser) async {
     if (firebaseUser == null) {
+      _demoAuthenticated = false;
       _currentUser = null;
       _currentRole = UserRole.patient;
 
@@ -132,6 +134,28 @@ class AuthProvider extends ChangeNotifier {
   }) async {
     _setLoading(true);
     _errorMessage = null;
+
+    final demoRole = _demoAccountRole(email.trim().toLowerCase(), password);
+
+    if (demoRole != null) {
+      _demoAuthenticated = true;
+      _currentRole = demoRole;
+      _currentUser = UserModel(
+        id: 'demo-${demoRole.name}',
+        name: switch (demoRole) {
+          UserRole.patient => 'Patient Demo',
+          UserRole.assistant => 'Sara Al-Khalid',
+          UserRole.admin => 'Platform Admin',
+        },
+        email: email.trim().toLowerCase(),
+        role: demoRole,
+        phone: '0000000000',
+        avatarUrl: '',
+      );
+      notifyListeners();
+      _setLoading(false);
+      return true;
+    }
 
     try {
       final credential = await _auth.signInWithEmailAndPassword(
@@ -247,6 +271,15 @@ Future<bool> restoreSession() async {
     _setLoading(true);
     _errorMessage = null;
 
+    if (_demoAuthenticated) {
+      _demoAuthenticated = false;
+      _currentUser = null;
+      _currentRole = UserRole.patient;
+      notifyListeners();
+      _setLoading(false);
+      return;
+    }
+
     try {
       await _auth.signOut();
 
@@ -263,6 +296,21 @@ Future<bool> restoreSession() async {
   }
 
   // ---------------- HELPERS ----------------
+
+  UserRole? _demoAccountRole(String email, String password) {
+    const demoAccounts = {
+      'assistant@dorakk.com': {'password': 'Dorakk123!', 'role': UserRole.assistant},
+      'admin@dorakk.com': {'password': 'Dorakk123!', 'role': UserRole.admin},
+      'patient@dorakk.com': {'password': 'Dorakk123!', 'role': UserRole.patient},
+    };
+
+    final match = demoAccounts[email];
+    if (match == null || match['password'] != password) {
+      return null;
+    }
+
+    return match['role'] as UserRole;
+  }
 
   UserRole _roleFromString(String role) {
     switch (role.trim().toLowerCase()) {
@@ -327,6 +375,7 @@ Future<bool> restoreSession() async {
   // --------------------------------------------------
 
   void setRole(UserRole role) {
+    _demoAuthenticated = false;
     _currentRole = role;
 
     _currentUser = switch (role) {

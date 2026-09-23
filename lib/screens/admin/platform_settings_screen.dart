@@ -1,9 +1,36 @@
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
 
+import '../../providers/auth_provider.dart';
+import '../../routes/app_routes.dart';
 import '../../theme/app_colors.dart';
 
 class PlatformSettingsScreen extends StatelessWidget {
   const PlatformSettingsScreen({super.key});
+
+  Future<void> _logout(BuildContext context) async {
+    final authProvider = context.read<AuthProvider>();
+
+    await authProvider.logout();
+
+    if (!context.mounted) {
+      return;
+    }
+
+    if (authProvider.isAuthenticated) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(authProvider.errorMessage ?? 'Could not log out.'),
+        ),
+      );
+      return;
+    }
+
+    Navigator.of(context).pushNamedAndRemoveUntil(
+      AppRoutes.login,
+      (route) => false,
+    );
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -11,10 +38,23 @@ class PlatformSettingsScreen extends StatelessWidget {
       appBar: AppBar(title: const Text('Platform Settings')),
       body: ListView(
         padding: const EdgeInsets.all(18),
-        children: const [
-          _SettingsTile(title: 'Role & permission management', subtitle: 'Manage staff access levels'),
-          _SettingsTile(title: 'Notification templates', subtitle: 'Queue alerts & reminders'),
-          _SettingsTile(title: 'General app settings', subtitle: 'Global platform preferences'),
+        children: [
+          const _SettingsTile(title: 'Role & permission management', subtitle: 'Manage staff access levels'),
+          const _SettingsTile(title: 'Notification templates', subtitle: 'Queue alerts & reminders'),
+          const _SettingsTile(title: 'General app settings', subtitle: 'Global platform preferences'),
+          const SizedBox(height: 8),
+          ListTile(
+            leading: const Icon(Icons.logout_rounded, color: AppColors.dangerRed),
+            title: const Text('Log out', style: TextStyle(fontWeight: FontWeight.w700)),
+            subtitle: const Text('Sign out of this account'),
+            trailing: const Icon(Icons.chevron_right_rounded),
+            tileColor: AppColors.surface,
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(18),
+              side: const BorderSide(color: AppColors.border),
+            ),
+            onTap: () => _logout(context),
+          ),
         ],
       ),
     );

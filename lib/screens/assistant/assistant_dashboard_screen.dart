@@ -1,9 +1,36 @@
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
 
+import '../../providers/auth_provider.dart';
+import '../../routes/app_routes.dart';
 import '../../theme/app_colors.dart';
 
 class AssistantDashboardScreen extends StatelessWidget {
   const AssistantDashboardScreen({super.key});
+
+  Future<void> _logout(BuildContext context) async {
+    final authProvider = context.read<AuthProvider>();
+
+    await authProvider.logout();
+
+    if (!context.mounted) {
+      return;
+    }
+
+    if (authProvider.isAuthenticated) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(authProvider.errorMessage ?? 'Could not log out.'),
+        ),
+      );
+      return;
+    }
+
+    Navigator.of(context).pushNamedAndRemoveUntil(
+      AppRoutes.login,
+      (route) => false,
+    );
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -11,6 +38,11 @@ class AssistantDashboardScreen extends StatelessWidget {
       appBar: AppBar(
         title: const Text('BloomCare Clinic'),
         actions: [
+          IconButton(
+            onPressed: () => _logout(context),
+            icon: const Icon(Icons.logout_rounded),
+            tooltip: 'Log out',
+          ),
           Switch(value: true, onChanged: (_) {}),
         ],
       ),

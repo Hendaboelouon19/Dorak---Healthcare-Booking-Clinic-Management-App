@@ -9,6 +9,43 @@ import '../models/appointment_model.dart';
 import 'mock_data.dart';
 
 class AppointmentProvider extends ChangeNotifier {
+  static bool isFallbackSlot(String slotId) {
+    return slotId.startsWith('fallback-');
+  }
+
+  static DateTime? parseFallbackSlotStartAt(String slotId) {
+    final parts = slotId.split('-');
+
+    if (parts.length < 4) {
+      return null;
+    }
+
+    final dayOffsetText = parts[parts.length - 2];
+    final hourText = parts[parts.length - 1];
+
+    final dayOffset = int.tryParse(dayOffsetText);
+    final hour = int.tryParse(hourText);
+
+    if (dayOffset == null || hour == null) {
+      return null;
+    }
+
+    final now = DateTime.now();
+    final baseDay = DateTime(
+      now.year,
+      now.month,
+      now.day,
+    ).add(Duration(days: dayOffset + 1));
+
+    return DateTime(
+      baseDay.year,
+      baseDay.month,
+      baseDay.day,
+      hour,
+      0,
+    );
+  }
+
   final FirebaseFirestore _firestore =
       FirebaseFirestore.instance;
 
@@ -403,56 +440,83 @@ class AppointmentProvider extends ChangeNotifier {
           );
 
           if (!slotSnapshot.exists) {
-            throw const _SlotUnavailableException(
-              'This appointment slot no longer exists.',
-            );
+            if (isFallbackSlot(slotId)) {
+              final fallbackStartAt =
+                  parseFallbackSlotStartAt(
+                slotId,
+              );
+
+              if (fallbackStartAt == null) {
+                throw const _SlotUnavailableException(
+                  'This demo slot could not be booked.',
+                );
+              }
+
+              confirmedStartAt = fallbackStartAt;
+              confirmedEndAt =
+                  fallbackStartAt.add(
+                const Duration(
+                  minutes: 30,
+                ),
+              );
+            } else {
+              throw const _SlotUnavailableException(
+                'This appointment slot no longer exists.',
+              );
+            }
+          } else {
+            final slotData =
+                slotSnapshot.data();
+
+            if (slotData == null) {
+              throw const _SlotUnavailableException(
+                'This appointment slot is unavailable.',
+              );
+            }
+
+            final active =
+                slotData['active'] ==
+                    true;
+
+            final status =
+                slotData['status']
+                        as String? ??
+                    '';
+
+            if (!active ||
+                status != 'available') {
+              throw const _SlotUnavailableException(
+                'Someone else has already booked this slot.',
+              );
+            }
+
+            final startTimestamp =
+                slotData['startAt'];
+
+            final endTimestamp =
+                slotData['endAt'];
+
+            if (startTimestamp
+                    is! Timestamp ||
+                endTimestamp
+                    is! Timestamp) {
+              throw const _SlotUnavailableException(
+                'This appointment slot has invalid timing.',
+              );
+            }
+
+            confirmedStartAt =
+                startTimestamp.toDate();
+
+            confirmedEndAt =
+                endTimestamp.toDate();
           }
 
-          final slotData =
-              slotSnapshot.data();
-
-          if (slotData == null) {
-            throw const _SlotUnavailableException(
-              'This appointment slot is unavailable.',
-            );
-          }
-
-          final active =
-              slotData['active'] ==
-                  true;
-
-          final status =
-              slotData['status']
-                      as String? ??
-                  '';
-
-          if (!active ||
-              status != 'available') {
-            throw const _SlotUnavailableException(
-              'Someone else has already booked this slot.',
-            );
-          }
-
-          final startTimestamp =
-              slotData['startAt'];
-
-          final endTimestamp =
-              slotData['endAt'];
-
-          if (startTimestamp
-                  is! Timestamp ||
-              endTimestamp
-                  is! Timestamp) {
+          if (confirmedStartAt == null || confirmedEndAt == null) {
             throw const _SlotUnavailableException(
               'This appointment slot has invalid timing.',
             );
           }
-
-          confirmedStartAt =
-              startTimestamp.toDate();
-
-          confirmedEndAt =
-              endTimestamp.toDate();
 
           if (!confirmedStartAt!
               .isAfter(
@@ -503,10 +567,10 @@ class AppointmentProvider extends ChangeNotifier {
                   slotId,
 
               'slotStartAt':
-                  startTimestamp,
+                  Timestamp.fromDate(confirmedStartAt!),
 
               'slotEndAt':
-                  endTimestamp,
+                  Timestamp.fromDate(confirmedEndAt!),
 
               'timeWindow':
                   timeWindow,
@@ -533,23 +597,25 @@ class AppointmentProvider extends ChangeNotifier {
           // RESERVE SLOT
           // ===================================================
 
-          transaction.update(
-            slotReference,
-            {
-              'status':
-                  'booked',
+          if (!isFallbackSlot(slotId)) {
+            transaction.update(
+              slotReference,
+              {
+                'status':
+                    'booked',
 
-              'bookedBy':
-                  firebaseUser.uid,
+                'bookedBy':
+                    firebaseUser.uid,
 
-              'appointmentId':
-                  appointmentReference.id,
+                'appointmentId':
+                    appointmentReference.id,
 
-              'bookedAt':
-                  FieldValue
-                      .serverTimestamp(),
-            },
-          );
+                'bookedAt':
+                    FieldValue
+                        .serverTimestamp(),
+              },
+            );
+          }
         },
       );
 

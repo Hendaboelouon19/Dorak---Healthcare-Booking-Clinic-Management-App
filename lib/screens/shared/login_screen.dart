@@ -170,6 +170,30 @@ class _LoginScreenState extends State<LoginScreen> {
 
                 const SizedBox(height: 24),
 
+                Container(
+                  padding: const EdgeInsets.all(14),
+                  decoration: BoxDecoration(
+                    color: Colors.blue.shade50,
+                    borderRadius: BorderRadius.circular(14),
+                    border: Border.all(color: Colors.blue.shade100),
+                  ),
+                  child: const Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        'Demo access',
+                        style: TextStyle(fontWeight: FontWeight.w700),
+                      ),
+                      SizedBox(height: 6),
+                      Text('Assistant: assistant@dorakk.com / Dorakk123!'),
+                      SizedBox(height: 4),
+                      Text('Admin: admin@dorakk.com / Dorakk123!'),
+                    ],
+                  ),
+                ),
+
+                const SizedBox(height: 20),
+
                 FilledButton(
                   onPressed:
                       authProvider.isLoading ? null : _login,

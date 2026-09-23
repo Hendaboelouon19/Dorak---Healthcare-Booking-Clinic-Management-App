@@ -248,7 +248,7 @@ class _SplashScreenState extends State<SplashScreen>
                     FadeTransition(
                       opacity: _wordmarkFade,
                       child: const Text(
-                        'Dorak',
+                        'Dorakk',
                         style: TextStyle(
                           fontSize: 34,
                           fontWeight: FontWeight.w800,

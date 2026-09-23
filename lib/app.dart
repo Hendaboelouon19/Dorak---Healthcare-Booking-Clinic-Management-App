@@ -46,7 +46,7 @@ class DorakkApp extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
-      title: 'Dorak',
+      title: 'Dorakk',
       debugShowCheckedModeBanner: false,
       theme: AppTheme.lightTheme,
 

@@ -2,7 +2,10 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
+import 'package:provider/provider.dart';
 
+import '../../models/user_model.dart';
+import '../../providers/auth_provider.dart' as app_auth;
 import '../../services/assistant_queue_service.dart';
 import '../../theme/app_colors.dart';
 
@@ -39,7 +42,14 @@ class _ArrivalApprovalScreenState
   void initState() {
     super.initState();
 
-    _loadAppointments();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _loadAppointments();
+    });
+  }
+
+  bool get _isDemoAssistantSession {
+    final authProvider = context.read<app_auth.AuthProvider>();
+    return _auth.currentUser == null && authProvider.currentRole == UserRole.assistant;
   }
 
   // ===========================================================
@@ -47,9 +57,11 @@ class _ArrivalApprovalScreenState
   // ===========================================================
 
   Future<void> _loadAppointments() async {
+    final authProvider = context.read<app_auth.AuthProvider>();
     final user = _auth.currentUser;
+    final isDemoAssistant = user == null && authProvider.currentRole == UserRole.assistant;
 
-    if (user == null) {
+    if (user == null && !isDemoAssistant) {
       if (!mounted) {
         return;
       }
@@ -63,12 +75,62 @@ class _ArrivalApprovalScreenState
       return;
     }
 
+    if (isDemoAssistant) {
+      if (!mounted) {
+        return;
+      }
+
+      setState(() {
+        _appointments = [
+          _ArrivalAppointment(
+            id: 'demo-1',
+            patientName: 'Aisha Rahman',
+            clinicId: 'demo-clinic-1',
+            clinicName: 'BloomCare Clinic',
+            doctorId: 'doc-1',
+            doctorName: 'Dr. Noura Ali',
+            scheduledAt: DateTime.now().add(const Duration(minutes: 15)),
+            timeWindow: '9:15 AM',
+            status: 'booked',
+          ),
+          _ArrivalAppointment(
+            id: 'demo-2',
+            patientName: 'Yousef Haddad',
+            clinicId: 'demo-clinic-1',
+            clinicName: 'BloomCare Clinic',
+            doctorId: 'doc-1',
+            doctorName: 'Dr. Noura Ali',
+            scheduledAt: DateTime.now().add(const Duration(minutes: 35)),
+            timeWindow: '9:45 AM',
+            status: 'confirmed',
+          ),
+        ];
+        _isLoading = false;
+        _errorMessage = null;
+      });
+
+      return;
+    }
+
     setState(() {
       _isLoading = true;
       _errorMessage = null;
     });
 
     try {
+      final uid = user?.uid;
+      if (uid == null && !isDemoAssistant) {
+        if (!mounted) {
+          return;
+        }
+
+        setState(() {
+          _isLoading = false;
+          _errorMessage = 'You must be logged in as an assistant.';
+        });
+        return;
+      }
+
       // =======================================================
       // 1. LOAD CLINICS OWNED BY THIS ASSISTANT
       // =======================================================
@@ -78,7 +140,7 @@ class _ArrivalApprovalScreenState
               .collection('clinics')
               .where(
                 'createdByAssistantId',
-                isEqualTo: user.uid,
+                isEqualTo: uid,
               )
               .get();
 

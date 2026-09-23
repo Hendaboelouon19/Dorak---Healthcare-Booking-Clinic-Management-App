@@ -1,4 +1,3 @@
-import 'package:fl_chart/fl_chart.dart';
 import 'package:flutter/material.dart';
 
 import '../../theme/app_colors.dart';
@@ -33,53 +32,6 @@ class AdminDashboardScreen extends StatelessWidget {
               ],
             ),
             const SizedBox(height: 22),
-            const Text('Active users trend', style: TextStyle(fontSize: 18, fontWeight: FontWeight.w700)),
-            SizedBox(
-              height: 220,
-              child: LineChart(
-                LineChartData(
-                  gridData: FlGridData(show: false),
-                  titlesData: FlTitlesData(show: false),
-                  borderData: FlBorderData(show: false),
-                  lineBarsData: [
-                    LineChartBarData(
-                      isCurved: true,
-                      color: AppColors.primaryBlue,
-                      barWidth: 3,
-                      dotData: FlDotData(show: false),
-                      belowBarData: BarAreaData(show: true, color: AppColors.primaryBlue.withValues(alpha: 0.12)),
-                      spots: const [
-                        FlSpot(0, 2),
-                        FlSpot(1, 3),
-                        FlSpot(2, 2.6),
-                        FlSpot(3, 4),
-                        FlSpot(4, 3.7),
-                        FlSpot(5, 5),
-                      ],
-                    ),
-                  ],
-                ),
-              ),
-            ),
-            const SizedBox(height: 22),
-            const Text('Appointments by clinic', style: TextStyle(fontSize: 18, fontWeight: FontWeight.w700)),
-            SizedBox(
-              height: 180,
-              child: BarChart(
-                BarChartData(
-                  titlesData: FlTitlesData(show: false),
-                  borderData: FlBorderData(show: false),
-                  gridData: FlGridData(show: false),
-                  barGroups: [
-                    makeBarGroup(0, 8),
-                    makeBarGroup(1, 12),
-                    makeBarGroup(2, 10),
-                    makeBarGroup(3, 16),
-                  ],
-                ),
-              ),
-            ),
-            const SizedBox(height: 22),
             const Text('Top clinics', style: TextStyle(fontSize: 18, fontWeight: FontWeight.w700)),
             const _ClinicListTile(name: 'BloomCare Clinic', volume: '320 booked'),
             const _ClinicListTile(name: 'CareNest Pediatrics', volume: '280 booked'),
@@ -112,18 +64,6 @@ class AdminDashboardScreen extends StatelessWidget {
     );
   }
 
-  BarChartGroupData makeBarGroup(int x, double y) {
-    return BarChartGroupData(
-      x: x,
-      barRods: [
-        BarChartRodData(
-          toY: y,
-          color: AppColors.primaryBlue,
-          borderRadius: BorderRadius.circular(8),
-        ),
-      ],
-    );
-  }
 }
 
 class _StatCard extends StatelessWidget {

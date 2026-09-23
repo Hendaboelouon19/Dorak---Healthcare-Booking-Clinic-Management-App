@@ -1,92 +1,138 @@
-# Dorak
+# 🔥 Firebase Integration
 
-Dorak is a modern healthcare and clinic booking app built with Flutter. It is designed to help patients discover clinics, book doctor appointments, track live queue status, receive notifications, and manage personal healthcare information in a simple and premium mobile experience.
+Dorak uses **Firebase** as its backend platform to support authentication, cloud data storage, and notifications across the Patient, Assistant, and Admin experiences.
 
-## Project Title
+### 🔐 Firebase Authentication
 
-Dorak - Healthcare Booking & Clinic Management App
+**Firebase Authentication** handles user authentication and provides secure access to the application.
 
-## Overview
+After authentication, Dorak uses the user's role to direct them to the appropriate experience:
 
-This project focuses on a polished UI experience for a healthcare platform with multiple user roles:
-
-- Patient flow for clinics, bookings, queue tracking, and profile
-- Assistant flow for clinic-side operations
-- Admin flow for performance and management dashboards
-- Mock data and provider-based state management for a realistic front-end prototype
-
-## Features
-
-- Role-based landing and navigation
-- Clinic discovery and doctor selection
-- Appointment booking flow
-- Live queue and waiting status
-- Appointment history and upcoming visits
-- Push-style notification center
-- Patient profile and account information
-- Premium blue medical branding and responsive UI design
-
-## Tech Stack
-
-- Flutter
-- Dart
-- Provider for state management
-- Google Fonts
-- fl_chart for analytics visuals
-- Intl for formatting
-- Flutter SVG for branding assets
-
-## Project Structure
-
-```bash
-lib/
-├── app.dart
-├── main.dart
-├── routes/
-├── providers/
-├── screens/
-│   ├── admin/
-│   ├── assistant/
-│   ├── patient/
-│   └── shared/
-├── theme/
-└── widgets/
+```text
+                    Authentication
+                          │
+                          ▼
+                  Firebase Authentication
+                          │
+                          ▼
+                     User Account
+                          │
+                  ┌───────┼───────┐
+                  │       │       │
+                  ▼       ▼       ▼
+               Patient Assistant Admin
+                  │       │       │
+                  ▼       ▼       ▼
+               Patient   Clinic   Admin
+                 App      Panel  Dashboard
 ```
 
-## Getting Started
+This allows Dorak to maintain separate interfaces and workflows for different types of users while using a centralized authentication system.
 
-### Prerequisites
+---
 
-- Flutter SDK installed
-- Android Studio / VS Code with Flutter support
-- Emulator or physical device
+### ☁️ Cloud Firestore
 
-### Install dependencies
+**Cloud Firestore** provides cloud-based data storage for the application.
 
-```bash
-flutter pub get
+It supports the data required by Dorak's healthcare workflow, allowing different parts of the application to work with shared, synchronized information.
+
+```text
+Patient
+   │
+   ├── Appointments ──┐
+   ├── Queue Status   │
+   └── Profile        │
+                      ▼
+               Cloud Firestore
+                      ▲
+                      │
+   ┌──────────────────┴──────────────────┐
+   │                                     │
+Assistant                              Admin
+   │                                     │
+   ├── Patients                           ├── Clinic Data
+   ├── Appointments                       ├── Statistics
+   └── Queue                              └── Management
 ```
 
-### Run the app
+Firestore allows the Patient, Assistant, and Admin experiences to interact with the same underlying clinic data while presenting it differently according to each role.
 
-```bash
-flutter run
+---
+
+### 🔔 Firebase Cloud Messaging
+
+Dorak uses **Firebase Cloud Messaging (FCM)** to support push notifications.
+
+Notifications are particularly important in a healthcare booking system because patients need timely information about appointments and clinic activity.
+
+FCM can be used to notify users about events such as:
+
+* Appointment updates
+* Booking status changes
+* Queue updates
+* Upcoming appointments
+* Clinic-related announcements
+
+```text
+Clinic / Application Event
+            │
+            ▼
+      Firebase / FCM
+            │
+            ▼
+     Push Notification
+            │
+            ▼
+         Patient
 ```
 
-### Analyze the project
+This helps connect actions happening inside the clinic workflow with the patient's mobile experience.
 
-```bash
-flutter analyze
+---
+
+# 🛠️ Tech Stack
+
+| Technology                   | Role in Dorak                          |
+| ---------------------------- | -------------------------------------- |
+| **Flutter**                  | Cross-platform mobile application      |
+| **Dart**                     | Application programming language       |
+| **Provider**                 | Application state management           |
+| **Firebase Authentication**  | User authentication and access         |
+| **Cloud Firestore**          | Cloud database and application data    |
+| **Firebase Cloud Messaging** | Push notifications                     |
+| **fl_chart**                 | Admin analytics and data visualization |
+| **Google Fonts**             | Application typography                 |
+| **Flutter SVG**              | SVG asset rendering                    |
+| **Intl**                     | Date and time formatting               |
+
+---
+
+## 🔥 Firebase Architecture
+
+```text
+                         DORAK
+                           │
+                ┌──────────┼──────────┐
+                │          │          │
+                ▼          ▼          ▼
+             Patient   Assistant    Admin
+                │          │          │
+                └──────────┼──────────┘
+                           │
+                           ▼
+                       Provider
+                           │
+                           ▼
+                  Firebase Services
+                           │
+             ┌─────────────┼─────────────┐
+             │             │             │
+             ▼             ▼             ▼
+      Authentication   Firestore        FCM
+             │             │             │
+             ▼             ▼             ▼
+        User Access    App Data    Notifications
 ```
 
-## Current Status
-
-This repository is currently a UI-focused healthcare prototype with mock data and simulated app interactions. It does not include real backend authentication or real-time healthcare integrations.
-
-## Notes
-
-The app is designed as a front-end experience for a clinic management system, with emphasis on user experience, clean information architecture, and role-driven healthcare flows.
-
-## License
-
-This project is for educational and demo purposes.
+Firebase acts as the backend layer connecting Dorak's three role-based experiences while Flutter provides the user-facing application.
