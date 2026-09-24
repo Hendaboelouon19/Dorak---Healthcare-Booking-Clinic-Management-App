@@ -95,15 +95,15 @@ Attend Appointment
 
 ### ✨ Patient Features
 
-- 🏥 Discover clinics
-- 👨‍⚕️ Browse doctors
-- 📅 Book appointments
-- ⏳ Track queue status
-- 🔔 Receive appointment and queue notifications
-- 🗓️ View upcoming appointments
-- 🕘 Access appointment history
-- 👤 Manage profile information
-- 📱 Dedicated patient navigation
+- Discover clinics
+- Browse doctors
+- Book appointments
+- Track queue status
+- Receive appointment and queue notifications
+- View upcoming appointments
+- Access appointment history
+- Manage profile information
+- Dedicated patient navigation
 
 ---
 
@@ -129,13 +129,13 @@ Update Patient Flow
 
 ### ⚙️ Assistant Features
 
-- 📋 Monitor daily clinic activity
-- 📅 Manage appointments
-- 👥 Handle patient information
-- ⏳ Monitor clinic queues
-- 🔄 Update patient flow
-- 🏥 Support daily clinic operations
-- 📱 Dedicated assistant navigation
+- Monitor daily clinic activity
+- Manage appointments
+- Handle patient information
+- Monitor clinic queues
+- Update patient flow
+- Support daily clinic operations
+- Dedicated assistant navigation
 
 ---
 
@@ -161,13 +161,13 @@ Management
 
 ### 📈 Admin Features
 
-- 📊 Management dashboard
-- 📈 Clinic performance overview
-- 🏥 Operational monitoring
-- 📉 Analytics and visualizations
-- 👥 Activity overview
-- 📋 Management information
-- 📱 Dedicated admin navigation
+- Management dashboard
+- Clinic performance overview
+- Operational monitoring
+- Analytics and visualizations
+- Activity overview
+- Management information
+- Dedicated admin navigation
 
 ---
 
@@ -495,64 +495,44 @@ At a high level, Dorak connects the Flutter presentation layer with application 
 
 # ✨ Core Features
 
-### 🏥 Clinic Discovery
+### Clinic Discovery
 
 Patients can explore clinics and doctors before starting the appointment process.
 
-### 👨‍⚕️ Doctor Discovery
+### Doctor Discovery
 
 Patients can browse doctors and select the healthcare provider that fits their needs.
 
-### 📅 Appointment Booking
+### Appointment Booking
 
 Patients can schedule and manage their clinic visits directly from Dorak.
 
-### ⏳ Queue Tracking
+### Queue Tracking
 
 Queue-related functionality provides patients with better visibility into their waiting experience.
 
-### 🔔 Push Notifications
+### Push Notifications
 
 Firebase Cloud Messaging keeps users informed about appointment, booking, and queue events.
 
-### 👥 Role-Based Experiences
+### Role-Based Experiences
 
 Patient, Assistant, and Admin interfaces are separated according to each user's responsibilities.
 
-### ☁️ Cloud Data
+### Cloud Data
 
 Cloud Firestore connects the different parts of Dorak through shared cloud-based data.
 
-### 📊 Analytics
+### Analytics
 
 Admin-facing interfaces provide visual representations of clinic activity and performance.
 
-### 🎨 Reusable Design
+### Reusable Design
 
 Shared themes and reusable Flutter widgets help maintain a consistent user experience throughout the application.
 
 ---
 
-# 🎨 UI & UX
-
-Dorak follows a clean, healthcare-oriented visual direction.
-
-The interface focuses on:
-
-- 💙 Medical-inspired visual identity
-- 📱 Mobile-first layouts
-- 🧭 Clear navigation hierarchy
-- 🧩 Reusable components
-- 📊 Easy-to-read dashboards
-- 🏥 Healthcare-focused information architecture
-- 👥 Role-specific experiences
-- ✨ Clean cards and surfaces
-- 🔤 Consistent typography
-- 📐 Consistent spacing and layouts
-
-The goal is to present healthcare information clearly while keeping each workflow simple and focused.
-
----
 
 # 🔒 Security & Role Separation
 
@@ -653,46 +633,7 @@ flutter analyze
 
 ---
 
-# 🚧 Project Scope
 
-Dorak demonstrates a role-oriented healthcare platform built around:
-
-- 👤 Patient workflows
-- 🧑‍💼 Assistant workflows
-- 📊 Admin workflows
-- 🔐 Firebase Authentication
-- ☁️ Cloud Firestore
-- 🔔 Firebase Cloud Messaging
-- 📅 Appointment booking
-- ⏳ Queue management
-- 📊 Analytics interfaces
-- 🧠 Provider state management
-- 🎨 Healthcare-focused UI/UX
-
-The application demonstrates how different clinic users can interact through one connected digital platform.
-
----
-
-# 🔮 Future Improvements
-
-Dorak can be expanded with:
-
-- 🔐 Advanced authorization rules
-- 🔄 Expanded real-time synchronization
-- 🔔 Advanced notification preferences
-- 🔎 Advanced clinic and doctor search
-- 🎯 Search and filtering
-- 📍 Location-based clinic discovery
-- 📝 Patient medical records
-- 📊 Advanced clinic reports
-- 👥 Staff permission management
-- 🏥 Multi-clinic support
-- 📅 Calendar integration
-- 🧪 Automated testing
-- 📈 Advanced analytics
-- 🛡️ Production healthcare security and privacy controls
-
----
 
 # 💡 Project Vision
 
